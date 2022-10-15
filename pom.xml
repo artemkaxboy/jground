@@ -64,12 +64,12 @@
             <groupId>de.codecentric</groupId>
             <artifactId>spring-boot-admin-starter-client</artifactId>
         </dependency>
-<!--
+        <!--
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-function-web</artifactId>
         </dependency>
--->
+        -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-sleuth</artifactId>
@@ -85,20 +85,20 @@
             <scope>runtime</scope>
             <optional>true</optional>
         </dependency>
-<!-- Requires Graphite Connection
+        <!-- Requires Graphite Connection
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-graphite</artifactId>
             <scope>runtime</scope>
         </dependency>
--->
-<!-- Requires INFLUXDB
+        -->
+        <!-- Requires INFLUXDB
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-influx</artifactId>
             <scope>runtime</scope>
         </dependency>
--->
+        -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
@@ -114,13 +114,13 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-<!-- requires JDBC
+        <!-- requires JDBC
         <dependency>
             <groupId>org.springframework.batch</groupId>
             <artifactId>spring-batch-test</artifactId>
             <scope>test</scope>
         </dependency>
--->
+        -->
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
