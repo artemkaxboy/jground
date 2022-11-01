@@ -92,10 +92,6 @@ public class ParallelRunner<T> implements AutoCloseable {
         return runner;
     }
 
-    private void setTasks(List<Future<T>> tasks) {
-        this.tasks = tasks;
-    }
-
     public void awaitReadiness() throws InterruptedException {
         long count;
         boolean interrupted = false;
@@ -158,6 +154,10 @@ public class ParallelRunner<T> implements AutoCloseable {
     public void close() {
         executorService.shutdownNow();
         shutdownHookThread.interrupt();
+    }
+
+    private void setTasks(List<Future<T>> tasks) {
+        this.tasks = tasks;
     }
 
     @SuppressWarnings("ClassCanBeRecord") // must be java 8 compatible
