@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -15,7 +16,7 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ParallelRunner<T> {
+public class ParallelRunner<T> implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(ParallelRunner.class);
 
@@ -24,6 +25,7 @@ public class ParallelRunner<T> {
     private final CountDownLatch startLatch;
     private final CountDownLatch finishLatch;
     private final CountDownLatch trigger;
+    private final Thread shutdownHookThread;
     private List<Future<T>> tasks;
 
     private ParallelRunner(int threadCount) {
@@ -33,14 +35,15 @@ public class ParallelRunner<T> {
         this.finishLatch = new CountDownLatch(threadCount);
         this.trigger = new CountDownLatch(1);
 
-        new Thread(() -> {
+        this.shutdownHookThread = new Thread(() -> {
             try {
                 this.finishLatch.await();
             } catch (InterruptedException ignored) {
             } finally {
                 this.executorService.shutdown();
             }
-        }).start();
+        });
+        this.shutdownHookThread.start();
     }
 
     public static ParallelRunner<Void> forRunnable(int threadCount, Runnable runnable) {
@@ -70,7 +73,7 @@ public class ParallelRunner<T> {
         return runner;
     }
 
-    public static <T, R> ParallelRunner<R> forFunction(int threadCount, Function<T, R> function, T argument) {
+    public static <T, R> ParallelRunner<R> forFunctionStatic(int threadCount, Function<T, R> function, T argument) {
         return forFunction(threadCount, function, (Supplier<T>) () -> argument);
     }
 
@@ -93,23 +96,42 @@ public class ParallelRunner<T> {
         this.tasks = tasks;
     }
 
-    public void await() throws InterruptedException {
-        long count = finishLatch.getCount();
-        if (count > 0) {
-            log.debug("Waiting for {} threads to finish...", count);
-            finishLatch.await();
-        } else {
-            log.debug("All threads are ready");
+    public void awaitReadiness() throws InterruptedException {
+        long count;
+        boolean interrupted = false;
+        while ((count = startLatch.getCount()) > 0 && !interrupted) {
+            log.debug("Waiting for {} threads to be ready...", count);
+            interrupted = startLatch.await(100, TimeUnit.MILLISECONDS);
         }
     }
 
-    public Collection<Result<T>> getResults() throws InterruptedException {
-        await();
-        return tasks.stream().parallel().map(f -> Result.of(f::get)).collect(Collectors.toList());
+    public void await() throws InterruptedException {
+        long count;
+        boolean interrupted = false;
+        while ((count = finishLatch.getCount()) > 0 && !interrupted) {
+            log.debug("Waiting for {} threads to finish...", count);
+            interrupted = finishLatch.await(100, TimeUnit.MILLISECONDS);
+        }
     }
 
-    public void run() {
+    public Collection<Result<T>> getResults() {
+        return tasks.stream().map(f -> Result.of(f::get)).collect(Collectors.toList());
+    }
+
+    public Collection<Result<T>> getResultValues() {
+        return tasks.stream().map(f -> Result.of(f::get)).filter(Result::isValue).collect(Collectors.toList());
+    }
+
+    public Collection<Result<T>> getResultExceptions() {
+        return tasks.stream().map(f -> Result.of(f::get)).filter(Result::isException).collect(Collectors.toList());
+    }
+
+    public void start() {
         trigger.countDown();
+    }
+
+    public void interrupt() {
+        close();
     }
 
     public boolean isDown() {
@@ -132,6 +154,11 @@ public class ParallelRunner<T> {
         return threadCount;
     }
 
+    @Override
+    public void close() {
+        executorService.shutdownNow();
+        shutdownHookThread.interrupt();
+    }
 
     @SuppressWarnings("ClassCanBeRecord") // must be java 8 compatible
     private static class TaskWorkerRunnable implements Runnable {
@@ -158,7 +185,7 @@ public class ParallelRunner<T> {
             try {
                 trigger.await();
                 runnable.run();
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             } finally {
                 finishLatch.countDown();
@@ -185,13 +212,11 @@ public class ParallelRunner<T> {
         }
 
         @Override
-        public T call() {
+        public T call() throws Exception {
             startLatch.countDown();
             try {
                 trigger.await();
                 return callable.call();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             } finally {
                 finishLatch.countDown();
             }
@@ -234,8 +259,6 @@ public class ParallelRunner<T> {
             try {
                 trigger.await();
                 return function.apply(argumentGetter.get());
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             } finally {
                 finishLatch.countDown();
             }
