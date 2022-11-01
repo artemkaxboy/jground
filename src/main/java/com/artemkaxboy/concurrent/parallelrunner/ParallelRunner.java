@@ -142,12 +142,12 @@ public class ParallelRunner<T> implements AutoCloseable {
         return threadCount - (int) finishLatch.getCount();
     }
 
-    public int getStartedTaskCount() {
+    public int getPreparedTaskCount() {
         return threadCount - (int) startLatch.getCount();
     }
 
     public int getRunningTaskCount() {
-        return getStartedTaskCount() - getFinishedThreadCount();
+        return getPreparedTaskCount() - getFinishedThreadCount();
     }
 
     public int getThreadCount() {

@@ -14,6 +14,13 @@ class ParallelRunnerTest {
 
     private static final Runnable NOOP = () -> {
     };
+    private static final Runnable SLEEP_SEC = () -> {
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    };
 
     private static <T> void verifyHalfThrownHalfExpected(T expectedValue,
                                                          Collection<ParallelRunner.Result<T>> values,
@@ -236,6 +243,54 @@ class ParallelRunnerTest {
     void getFinishedThreadCount_WhenNotStarted() {
         try (ParallelRunner<Void> runner = ParallelRunner.forRunnable(FEW_THREADS, NOOP)) {
             Assertions.assertEquals(0, runner.getFinishedThreadCount());
+        }
+    }
+
+    @Test
+    void getFinishedThreadCount_WhenFinished() throws InterruptedException {
+        try (ParallelRunner<Void> runner = ParallelRunner.forRunnable(FEW_THREADS, NOOP)) {
+            runner.start();
+            runner.await();
+            Assertions.assertEquals(FEW_THREADS, runner.getFinishedThreadCount());
+        }
+    }
+
+    @Test
+    void getFinishedThreadCount_WhenInterrupted() throws InterruptedException {
+        try (ParallelRunner<Void> runner = ParallelRunner.forRunnable(FEW_THREADS, SLEEP_SEC)) {
+            runner.start();
+            runner.awaitReadiness();
+            interruptRunnerInAWhile(runner);
+            runner.await();
+            Assertions.assertEquals(FEW_THREADS, runner.getFinishedThreadCount());
+        }
+    }
+
+    @Test
+    void getFinishedThreadCount_WhenInterruptedBeforeStart() throws InterruptedException {
+        try (ParallelRunner<Void> runner = ParallelRunner.forRunnable(FEW_THREADS, SLEEP_SEC)) {
+            runner.awaitReadiness();
+            runner.interrupt();
+            runner.start();
+            runner.await();
+            Assertions.assertEquals(FEW_THREADS, runner.getFinishedThreadCount());
+        }
+    }
+
+    @Test
+    void getPreparedTaskCount_WhenNotStarted() throws InterruptedException {
+        try (ParallelRunner<Void> runner = ParallelRunner.forRunnable(FEW_THREADS, NOOP)) {
+            runner.awaitReadiness();
+            Assertions.assertEquals(FEW_THREADS, runner.getPreparedTaskCount());
+        }
+    }
+
+    @Test
+    void getPreparedTaskCount_WhenStarted() throws InterruptedException {
+        try (ParallelRunner<Void> runner = ParallelRunner.forRunnable(FEW_THREADS, NOOP)) {
+            runner.awaitReadiness();
+            runner.start();
+            Assertions.assertEquals(FEW_THREADS, runner.getPreparedTaskCount());
         }
     }
 }
