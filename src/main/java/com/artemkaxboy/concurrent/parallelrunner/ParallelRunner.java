@@ -92,6 +92,22 @@ public class ParallelRunner<T> implements AutoCloseable {
         return runner;
     }
 
+    public int getThreadCount() {
+        return threadCount;
+    }
+
+    public int getFinishedThreadCount() {
+        return threadCount - (int) finishLatch.getCount();
+    }
+
+    public int getStartedThreadCount() {
+        return threadCount - (int) startLatch.getCount();
+    }
+
+    public int getRunningThreadCount() {
+        return getStartedThreadCount() - getFinishedThreadCount();
+    }
+
     public void awaitReadiness() throws InterruptedException {
         long count;
         boolean interrupted = false;
@@ -101,6 +117,10 @@ public class ParallelRunner<T> implements AutoCloseable {
         }
     }
 
+    public void start() {
+        trigger.countDown();
+    }
+
     public void await() throws InterruptedException {
         long count;
         boolean interrupted = false;
@@ -108,6 +128,20 @@ public class ParallelRunner<T> implements AutoCloseable {
             log.debug("Waiting for {} threads to finish...", count);
             interrupted = finishLatch.await(100, TimeUnit.MILLISECONDS);
         }
+    }
+
+    public void interrupt() {
+        close();
+    }
+
+    @Override
+    public void close() {
+        executorService.shutdownNow();
+        shutdownHookThread.interrupt();
+    }
+
+    public boolean isDown() {
+        return executorService.isShutdown();
     }
 
     public Collection<Result<T>> getResults() {
@@ -120,40 +154,6 @@ public class ParallelRunner<T> implements AutoCloseable {
 
     public Collection<Result<T>> getResultExceptions() {
         return tasks.stream().map(f -> Result.of(f::get)).filter(Result::isException).collect(Collectors.toList());
-    }
-
-    public void start() {
-        trigger.countDown();
-    }
-
-    public void interrupt() {
-        close();
-    }
-
-    public boolean isDown() {
-        return executorService.isShutdown();
-    }
-
-    public int getFinishedThreadCount() {
-        return threadCount - (int) finishLatch.getCount();
-    }
-
-    public int getPreparedTaskCount() {
-        return threadCount - (int) startLatch.getCount();
-    }
-
-    public int getRunningTaskCount() {
-        return getPreparedTaskCount() - getFinishedThreadCount();
-    }
-
-    public int getThreadCount() {
-        return threadCount;
-    }
-
-    @Override
-    public void close() {
-        executorService.shutdownNow();
-        shutdownHookThread.interrupt();
     }
 
     private void setTasks(List<Future<T>> tasks) {

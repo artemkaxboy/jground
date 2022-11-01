@@ -281,7 +281,7 @@ class ParallelRunnerTest {
     void getPreparedTaskCount_WhenNotStarted() throws InterruptedException {
         try (ParallelRunner<Void> runner = ParallelRunner.forRunnable(FEW_THREADS, NOOP)) {
             runner.awaitReadiness();
-            Assertions.assertEquals(FEW_THREADS, runner.getPreparedTaskCount());
+            Assertions.assertEquals(FEW_THREADS, runner.getStartedThreadCount());
         }
     }
 
@@ -290,7 +290,7 @@ class ParallelRunnerTest {
         try (ParallelRunner<Void> runner = ParallelRunner.forRunnable(FEW_THREADS, NOOP)) {
             runner.awaitReadiness();
             runner.start();
-            Assertions.assertEquals(FEW_THREADS, runner.getPreparedTaskCount());
+            Assertions.assertEquals(FEW_THREADS, runner.getStartedThreadCount());
         }
     }
 }
