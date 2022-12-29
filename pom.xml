@@ -136,6 +136,13 @@
             <artifactId>mongodb</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!--        Playwright testing -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.28.1</version>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
